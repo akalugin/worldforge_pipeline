@@ -3,21 +3,101 @@ Tool depends on Blender to Ogre exporter http://code.google.com/p/blender2ogre
 '''
 
 bl_info = {
-    "name": "Pipeline Tools",
-    "category": "WorldForge",
-    "author": "a.kalugin",
-    "version": (0, 0, 1),
-    "blender": (2, 71, 0),
-    "description": "Worldforge Pipeline Tools",
-    "warning": "",
-    "wiki_url": ""
+    'name': 'Pipeline Tools',
+    'category': 'WorldForge',
+    'author': 'anisimkalugin.com',
+    'version': (0, 0, 1),
+    'blender': (2, 71, 0),
+    'description': 'Worldforge Pipeline Tools',
+    'warning': '',
+    'wiki_url': ''
     }
 
 import bpy, os, shutil
 from bpy.types import Operator
-from bpy.props import FloatVectorProperty
+# from bpy.props import FloatVectorProperty
 from bpy_extras.object_utils import AddObjectHelper, object_data_add
-from mathutils import Vector
+#from mathutils import Vector
+
+class OgreMaterialManager:
+    '''Worldforge material management utilites'''
+    def __init__(self):
+        self.DEBUG = False
+        
+    def get_base_name( self, path ):
+        bad_names_l = ['//..','texture','source','model',]
+        tkns = path.split(os.sep)[1:-1]
+        seps = []
+        for i in range( len(tkns)):
+            itm =  tkns[i]
+            if not itm in bad_names_l:
+               seps.append(itm)
+        if seps == []:
+            return 'blender file name'
+            #bpy.path.display_name_from_filepath(bpy.data.filepath)
+        return seps[-1]
+
+    def get_ogre_mat_name( self, relative_path ):
+        '''retrieves ogre.material based on the current image'''
+        #ogre_mat_file = relative_path[:-5] + 'ogre.material'
+        ogre_mat_file = bpy.path.abspath(relative_path)[:-5] + 'ogre.material'
+        # ogre_mat_file = testPath[:-5] + 'ogre.material'
+        matNames = []
+        if os.path.isfile(ogre_mat_file):
+            f = open(ogre_mat_file, 'r')
+            for line in f:
+                if line[:8] == 'material':
+                    matNames.append( line.split(' ')[1] )
+            f.close()
+
+        return matNames
+
+    def write_to_text_datablock(self, b_list):
+        '''writes out the list to a ogre mat textblock'''
+        ogre_tdb = self.get_text_datablock()
+        ogre_tdb.write('--------------\n')
+        for itm in b_list:
+            ogre_tdb.write('%s \n' % itm )
+
+    def get_text_datablock( self, tdb = 'ogre_mats' ):
+        '''gets/creates a text data block (tdb)'''
+        txt_datablock = bpy.data.texts.find( tdb )
+        if txt_datablock == -1:
+            return bpy.data.texts.new( tdb )
+        return bpy.data.texts[tdb]
+
+    def wf_fix_materials( self, context):
+        '''tries to fix material names based on ogre.material files'''
+        sel = bpy.context.selected_objects
+        for ob in sel:
+            for slot in ob.material_slots:
+                mat = slot.material
+                mat.name
+                img = mat.active_texture
+
+                image_path = mat.active_texture.image.filepath #= 'asdfsadf' manipulate the file path
+                
+                #image_names_list = self.get_ogre_mat_name( image_path )
+                image_names_list = [itm for itm in self.get_ogre_mat_name( image_path ) if itm[-12:] != 'shadowcaster']
+                if image_names_list != []:
+                    if len(image_names_list) > 1:
+                        self.write_to_text_datablock( image_names_list )
+                    else:
+                        mat.name = image_names_list[0]
+                        
+                image_type = (bpy.path.display_name( image_path )).lower()
+                asset_name = self.get_base_name( image_path )
+                image_name = '_'.join( [asset_name, image_type] )
+
+                mat.active_texture.name = image_name
+                mat.active_texture.image.name = image_name
+                            
+                if self.DEBUG == True:
+                    print( image_path )
+                    print( image_type )
+                    print( asset_name )
+                    print( image_name )
+                    print( image_names_list )
 
 def convertXMLToMesh(path):
     os.system('OgreXmlConverter.exe -t -q ' + path)
@@ -40,7 +120,7 @@ def adjust_ogre_xml_skeleton(ogre_xml_file, skeleton_name = None ):
 			for line in lines:
 				if (line.strip())[0:5] == '<skel':
 					tks = line.split('=')
-					fixed_skeleton_line =  ('%s=\"%s.skeleton\"/>\n' % (tks[0], skeleton_name))
+					fixed_skeleton_line =  ('%s=\'%s.skeleton\'/>\n' % (tks[0], skeleton_name))
 					f.write(fixed_skeleton_line)
 				else:
 					f.write(line)
@@ -70,7 +150,6 @@ def convert_ogre_xmls_to_mesh(root_dir):
         if dd.endswith('.xml'):
             convertXMLToMesh(os.path.abspath(os.path.join(root_dir, dd)))
     
-
 def wf_export_ogre(ogreXmlPath, animation = False):
     '''Ogre Exporter'''
     bpy.ops.ogre.export(
@@ -99,7 +178,7 @@ def wf_export_ogre(ogreXmlPath, animation = False):
         EX_nuextremityPoints        =0, 
         EX_generateEdgeLists        =False, 
         EX_generateTangents         =True, 
-        EX_tangentSemantic          ="uvw", 
+        EX_tangentSemantic          ='uvw', 
         EX_tangentUseParity         =4, 
         EX_tangentSplitMirrored     =False, 
         EX_tangentSplitRotated      =False, 
@@ -157,70 +236,86 @@ def export_ogre_animated (self, context, convert = True):
         
     else:
         root_path, ogre_xml_path  = get_wf_export_path(True)
-
         wf_export_ogre(ogre_xml_path, True)
-        
         xml_skeleton_shuffle (root_path, skeleton_name)
-
         convert_ogre_xmls_to_mesh(root_path)
         clean_tmp_dir(root_path, root_path[:-4])
 
 
 # ----------------------------------------------------------------------------
-# -------------------------- COMMAND INIT ------------------------------------
+# -------------------------- COMMAND EXEC ------------------------------------
 # ----------------------------------------------------------------------------
-
-
 class OBJECT_OT_wfoe_animated(Operator, AddObjectHelper):
-    """export animated ogre file"""
-    bl_idname = "mesh.wf_export_ogre_animated"
-    bl_label = "Export Ogre Animated"
-    bl_category = "WorldForge"
+    '''export animated ogre file'''
+    bl_idname = 'mesh.wf_export_ogre_animated'
+    bl_label = 'Export Ogre Animated'
+    bl_category = 'WorldForge'
     bl_options = {'REGISTER', 'UNDO'}
 
 
     def execute(self, context):
         export_ogre_animated(self, context, True)
-
         return {'FINISHED'}
 
 class OBJECT_OT_wfoe_static(Operator, AddObjectHelper):
-    """export static ogre file"""
-    bl_idname = "mesh.wf_export_ogre_static"
-    bl_label = "Export Ogre Static"
-    bl_category = "WorldForge"
+    '''export static ogre file'''
+    bl_idname = 'mesh.wf_export_ogre_static'
+    bl_label = 'Export Ogre Static'
+    bl_category = 'WorldForge'
     bl_options = {'REGISTER', 'UNDO'}
 
 
     def execute(self, context):
         export_ogre_static(self, context, True)
-
         return {'FINISHED'}
 
+class OBJECT_OT_wf_fix_materials(Operator, AddObjectHelper):
+    '''Gets meshes ready for woldforge export'''
+    bl_idname = 'mesh.wf_fix_materials'
+    bl_label = 'WF Mat Fixer'
+    bl_category = 'WorldForge'
+    bl_options = {'REGISTER', 'UNDO'}
 
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj is not None
+
+    def execute(self, context):
+        OMM = OgreMaterialManager()
+        OMM.wf_fix_materials(context)
+        return {'FINISHED'}
+
+# ----------------------------------------------------------------------------
+# ------------------------ BUTTON MAPPING ------------------------------------
+# ----------------------------------------------------------------------------
+def wfoe_static_manual_map():
+    url_manual_prefix = 'http://wiki.blender.org/index.php/Doc:2.6/Manual/'
+    url_manual_mapping = (('bpy.ops.mesh.wf_export_ogre_static', 'Modeling/Objects'), )
+    return url_manual_prefix, url_manual_mapping
+
+def wfoe_animated_manual_map():
+    url_manual_prefix = 'http://wiki.blender.org/index.php/Doc:2.6/Manual/'
+    url_manual_mapping = (('bpy.ops.mesh.wf_export_ogre_animated', 'Modeling/Objects'), )
+    return url_manual_prefix, url_manual_mapping
+
+def wf_fix_materials_manual_map():
+    url_manual_prefix = 'http://wiki.blender.org/index.php/Doc:2.6/Manual/'
+    url_manual_mapping = (('bpy.ops.mesh.wf_export_ogre_animated', 'Modeling/Objects'), )
+    return url_manual_prefix, url_manual_mapping
 
 # ----------------------------------------------------------------------------
 # --------------------------- REGISRATION ------------------------------------
 # ----------------------------------------------------------------------------
-
-
-def wfoe_static_manual_map():
-    url_manual_prefix = "http://wiki.blender.org/index.php/Doc:2.6/Manual/"
-    url_manual_mapping = (("bpy.ops.mesh.wf_export_ogre_static", "Modeling/Objects"), )
-    return url_manual_prefix, url_manual_mapping
-
-def wfoe_animated_manual_map():
-    url_manual_prefix = "http://wiki.blender.org/index.php/Doc:2.6/Manual/"
-    url_manual_mapping = (("bpy.ops.mesh.wf_export_ogre_animated", "Modeling/Objects"), )
-    return url_manual_prefix, url_manual_mapping
-
-
 def register():
     bpy.utils.register_class(OBJECT_OT_wfoe_static)
     bpy.utils.register_manual_map(wfoe_static_manual_map)
 
     bpy.utils.register_class(OBJECT_OT_wfoe_animated)
     bpy.utils.register_manual_map(wfoe_animated_manual_map)
+
+    bpy.utils.register_class(OBJECT_OT_wf_fix_materials)
+    bpy.utils.register_manual_map(wf_fix_materials_manual_map)
 
 def unregister():
     bpy.utils.unregister_class(OBJECT_OT_wfoe_static)
@@ -229,9 +324,13 @@ def unregister():
     bpy.utils.unregister_class(OBJECT_OT_wfoe_animated)
     bpy.utils.unregister_manual_map(wfoe_animated_manual_map)
 
+    bpy.utils.unregister_class(OBJECT_OT_wf_fix_materials)
+    bpy.utils.unregister_manual_map(wf_fix_materials_manual_map)
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     register()
+
 
 
 

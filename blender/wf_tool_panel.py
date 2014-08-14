@@ -1,12 +1,13 @@
 bl_info = {
     "name": "Tools Panel",
     "category": "WorldForge",
-    "author": "a.kalugin"
+    "author": "anisimkalugin.com",
+    "description": "Worldforge Pipeline Panel",
     } 
     
 import bpy
 
-bpy.types.Scene.Current_Rig = bpy.props.StringProperty()
+bpy.types.Scene.Rig = bpy.props.StringProperty()
 
 def get_armature (name):
     '''gets the name of the current armature '''
@@ -14,8 +15,6 @@ def get_armature (name):
         if ob.name == name:
             return ob
     return False
-
-
 
 class CustomPanel(bpy.types.Panel):
     """Worldforge Tools Panel"""
@@ -51,25 +50,15 @@ class CustomPanel(bpy.types.Panel):
         row = layout.row()
         row.operator("mesh.wf_export_ogre_animated")
         
- 
+        row = layout.row()
+        layout.label(text="Weight Utilities")
+        row = layout.row()
+        row.operator('object.vertex_group_limit_total', text= 'Limit Weights')
         
-        #row.prop(None, "")
-        #row.prop(obj, "name")
-        #row = layout.row()
-        #row.label(text="Active object is: " + obj.name)
-        
-        
-        #obj = context.object
-        #layout = self.layout
-        #row = layout.row()
-        #row.template_list(obj, "myCollection", obj, "myCollection_index")
-
-        
-        #dummy_object1 = bpy.data.objects[0]
-        #col = layout.column()
-        #col.prop(dummy_object1, "parent")
-        #row.label(text="Active object is: " + obj.name)
-
+        row = layout.row()
+        layout.label(text="Material Utilities")
+        row = layout.row()
+        row.operator('mesh.wf_fix_materials', text= 'Fix Materials')
         
 def register():
     bpy.utils.register_class(CustomPanel)
@@ -79,5 +68,6 @@ def unregister():
 
 if __name__ == "__main__":
     register()
+
 
 
