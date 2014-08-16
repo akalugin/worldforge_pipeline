@@ -37,6 +37,38 @@ class OgreMaterialManager:
             #bpy.path.display_name_from_filepath(bpy.data.filepath)
         return seps[-1]
 
+    def open_ogre_materials(self, context):
+        '''opens ogre.material based on the texture file path'''
+        sel = bpy.context.selected_objects
+        tmp_txt = bpy.data.texts.new('{tmp}') #hacky shit
+
+        for ob in sel:
+            for slot in ob.material_slots:
+                mat = slot.material
+
+                if mat.active_texture == None:
+                    continue
+
+                image_path = mat.active_texture.image.filepath
+                ogre_mat_file = bpy.path.abspath(image_path)[:-5] + 'ogre.material'
+                if os.path.isfile(ogre_mat_file):
+                    txt_datablock = bpy.data.texts
+
+                    filepaths = [itm.filepath for itm in bpy.data.texts]
+
+                    for dat in filepaths:
+                        exists = ogre_mat_file in filepaths
+                        if exists == False:
+                            bpy.ops.text.open(filepath=ogre_mat_file)
+                        
+                        if self.DEBUG == True:
+                            print ( '---- debug statements ----' )
+                            print ( image_path )
+                            print ( ogre_mat_file )
+                            print ( filepaths )
+                            print ( exists )
+        bpy.data.texts.remove(tmp_txt)
+#
     def get_ogre_mat_name( self, relative_path ):
         '''retrieves ogre.material based on the current image'''
         #ogre_mat_file = relative_path[:-5] + 'ogre.material'
@@ -73,8 +105,11 @@ class OgreMaterialManager:
             for slot in ob.material_slots:
                 mat = slot.material
                 mat.name
-                img = mat.active_texture
+                
+                if mat.active_texture == None:
+                    continue
 
+                img = mat.active_texture
                 image_path = mat.active_texture.image.filepath #= 'asdfsadf' manipulate the file path
                 
                 #image_names_list = self.get_ogre_mat_name( image_path )
@@ -286,6 +321,27 @@ class OBJECT_OT_wf_fix_materials(Operator, AddObjectHelper):
         OMM.wf_fix_materials(context)
         return {'FINISHED'}
 
+class OBJECT_OT_wf_open_ogre_materials(Operator, AddObjectHelper):
+    '''open ogre materials based on the texture filename '''
+    bl_idname = 'mesh.wf_open_ogre_materials'
+    bl_label = 'WF Open Ogre Materials'
+    bl_category = 'WorldForge'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj is not None
+
+    def execute(self, context):
+        OMM = OgreMaterialManager()
+        print('Opening all the ogre materials')
+        OMM.DEBUG = True
+        OMM.open_ogre_materials(context)
+        return {'FINISHED'}
+
+
+
 # ----------------------------------------------------------------------------
 # ------------------------ BUTTON MAPPING ------------------------------------
 # ----------------------------------------------------------------------------
@@ -301,7 +357,12 @@ def wfoe_animated_manual_map():
 
 def wf_fix_materials_manual_map():
     url_manual_prefix = 'http://wiki.blender.org/index.php/Doc:2.6/Manual/'
-    url_manual_mapping = (('bpy.ops.mesh.wf_export_ogre_animated', 'Modeling/Objects'), )
+    url_manual_mapping = (('bpy.ops.mesh.wf_fix_materials', 'Modeling/Objects'), )
+    return url_manual_prefix, url_manual_mapping
+
+def wf_open_ogre_materials_manual_map():
+    url_manual_prefix = 'http://wiki.blender.org/index.php/Doc:2.6/Manual/'
+    url_manual_mapping = (('bpy.ops.mesh.wf_open_ogre_materials', 'Modeling/Objects'), )
     return url_manual_prefix, url_manual_mapping
 
 # ----------------------------------------------------------------------------
@@ -317,6 +378,9 @@ def register():
     bpy.utils.register_class(OBJECT_OT_wf_fix_materials)
     bpy.utils.register_manual_map(wf_fix_materials_manual_map)
 
+    bpy.utils.register_class(OBJECT_OT_wf_open_ogre_materials)
+    bpy.utils.register_manual_map(wf_open_ogre_materials_manual_map)
+
 def unregister():
     bpy.utils.unregister_class(OBJECT_OT_wfoe_static)
     bpy.utils.unregister_manual_map(wfoe_static_manual_map)
@@ -327,9 +391,15 @@ def unregister():
     bpy.utils.unregister_class(OBJECT_OT_wf_fix_materials)
     bpy.utils.unregister_manual_map(wf_fix_materials_manual_map)
 
+    bpy.utils.unregister_class(OBJECT_OT_wf_open_ogre_materials)
+    bpy.utils.unregister_manual_map(wf_open_ogre_materials_manual_map)
+
 
 if __name__ == '__main__':
     register()
+
+
+
 
 
 
