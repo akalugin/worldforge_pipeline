@@ -18,10 +18,45 @@ from bpy.types import Operator
 # from bpy.props import FloatVectorProperty
 from bpy_extras.object_utils import AddObjectHelper, object_data_add
 #from mathutils import Vector
+class RigAnimationUtilities:
+    def __init__( self ):
+        self.DEBUG = False
+    
+    def clean_vertex_groups( self, context ):
+        sel = bpy.context.selected_objects
+
+        for ob in sel:
+            vertex_groups = ob.vertex_groups
+            if len(ob.modifiers) > 0:
+                rig = ob.modifiers[-1].object # get the rig
+                bones = rig.data.bones
+                
+                
+                if self.DEBUG:
+                    print( ob.name )
+                    print( rig.name )
+                    print( bones )
+                #get data
+                vgrp_list = [grp.name for grp in ob.vertex_groups]
+                bone_list = [bone.name for bone in rig.data.bones if bone.use_deform ]
+
+                #compare lists 
+                del_group = [itm for itm in vgrp_list if itm not in bone_list]
+                mkv_groups = [itm for itm in bone_list if itm not in vgrp_list]
+
+                #add vertex groups based on armatures deformable bones
+                [ob.vertex_groups.new(name) for name in mkv_groups] 
+
+                # remove groups that are not part of the current armatures deformable bones
+                # list comprehension code may be a bit too long
+                [ob.vertex_groups.remove( ob.vertex_groups[ ob.vertex_groups.find( group ) ] ) for group in del_group]
+                return True
+
+        return False
 
 class OgreMaterialManager:
     '''Worldforge material management utilites'''
-    def __init__(self):
+    def __init__( self ):
         self.DEBUG = False
         
     def get_base_name( self, path ):
@@ -323,7 +358,7 @@ class OBJECT_OT_wf_fix_materials(Operator, AddObjectHelper):
 
 class OBJECT_OT_wf_open_ogre_materials(Operator, AddObjectHelper):
     '''open ogre materials based on the texture filename '''
-    bl_idname = 'mesh.wf_open_ogre_materials'
+    bl_idname = 'scene.wf_open_ogre_materials'
     bl_label = 'WF Open Ogre Materials'
     bl_category = 'WorldForge'
     bl_options = {'REGISTER', 'UNDO'}
@@ -335,9 +370,26 @@ class OBJECT_OT_wf_open_ogre_materials(Operator, AddObjectHelper):
 
     def execute(self, context):
         OMM = OgreMaterialManager()
-        print('Opening all the ogre materials')
-        OMM.DEBUG = True
+        OMM.DEBUG = False
         OMM.open_ogre_materials(context)
+        return {'FINISHED'}
+
+class OBJECT_OT_clean_vertex_groups(Operator, AddObjectHelper):
+    '''Cleans vertex groups on select objects base on current armatures deformable bones'''
+    bl_idname = 'object.clean_vertex_groups'
+    bl_label = 'Clean Vertex Groups'
+    bl_category = 'WorldForge'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj is not None
+
+    def execute(self, context):
+        RAU = RigAnimationUtilities()
+        RAU.DEBUG = True
+        RAU.clean_vertex_groups(context)
         return {'FINISHED'}
 
 
@@ -362,7 +414,12 @@ def wf_fix_materials_manual_map():
 
 def wf_open_ogre_materials_manual_map():
     url_manual_prefix = 'http://wiki.blender.org/index.php/Doc:2.6/Manual/'
-    url_manual_mapping = (('bpy.ops.mesh.wf_open_ogre_materials', 'Modeling/Objects'), )
+    url_manual_mapping = (('bpy.ops.scene.wf_open_ogre_materials', 'Modeling/Objects'), )
+    return url_manual_prefix, url_manual_mapping
+
+def clean_vertex_groups_manual_map():
+    url_manual_prefix = 'http://wiki.blender.org/index.php/Doc:2.6/Manual/'
+    url_manual_mapping = (('bpy.ops.object.clean_vertex_groups', 'Modeling/Objects'), )
     return url_manual_prefix, url_manual_mapping
 
 # ----------------------------------------------------------------------------
@@ -381,6 +438,9 @@ def register():
     bpy.utils.register_class(OBJECT_OT_wf_open_ogre_materials)
     bpy.utils.register_manual_map(wf_open_ogre_materials_manual_map)
 
+    bpy.utils.register_class(OBJECT_OT_clean_vertex_groups)
+    bpy.utils.register_manual_map(clean_vertex_groups_manual_map)
+
 def unregister():
     bpy.utils.unregister_class(OBJECT_OT_wfoe_static)
     bpy.utils.unregister_manual_map(wfoe_static_manual_map)
@@ -394,13 +454,38 @@ def unregister():
     bpy.utils.unregister_class(OBJECT_OT_wf_open_ogre_materials)
     bpy.utils.unregister_manual_map(wf_open_ogre_materials_manual_map)
 
+    bpy.utils.unregister_class(OBJECT_OT_clean_vertex_groups)
+    bpy.utils.unregister_manual_map(clean_vertex_groups_manual_map)
 
 if __name__ == '__main__':
     register()
 
 
 
+'''
+ob = bpy.context.active_object
 
+def clean_vertex_groups( ob ):
+    vertex_groups = ob.vertex_groups
+    rig = ob.modifiers[-1].object # get the rig
+    bones = rig.data.bones
+    #get data
+    vgrp_list = [grp.name for grp in ob.vertex_groups]
+    bone_list = [bone.name for bone in rig.data.bones if bone.use_deform ]
+
+    #compare lists 
+    del_group = [itm for itm in vgrp_list if itm not in bone_list]
+    mkv_groups = [itm for itm in bone_list if itm not in vgrp_list]
+
+    #add vertex groups based on armatures deformable bones
+    [ob.vertex_groups.new(name) for name in mkv_groups] 
+
+    # remove groups that are not part of the current armatures deformable bones
+    # list comprehension code may be a bit too long
+    [ob.vertex_groups.remove( ob.vertex_groups[ ob.vertex_groups.find( group ) ] ) for group in del_group]
+        
+clean_vertex_groups( ob )    
+'''
 
 
 

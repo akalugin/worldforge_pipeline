@@ -32,7 +32,7 @@ class PANEL_OT_wf_tools_panel(bpy.types.Panel):
         scn = context.scene
         
         obj = get_armature ('wf_armature')
-        
+#------------------------- WF OGRE EXPORTER SECTION ----------------------------------
         layout.label(text="OGRE Object Exporter")
         row = layout.row()
         row.operator("mesh.wf_export_ogre_static")
@@ -45,21 +45,25 @@ class PANEL_OT_wf_tools_panel(bpy.types.Panel):
         row.prop(scene, "frame_start")
         row.prop(scene, "frame_end")
         col = layout.column() 
-        #col.label('Choose a Rig For Export')
+        
         col.prop_search(scene, "Rig", bpy.data, "armatures")
         row = layout.row()
         row.operator("mesh.wf_export_ogre_animated")
-        
+
+#--------------------- ANIMATION AND RIGGIN UTILITES ----------------------------------
         row = layout.row()
         layout.label(text="Weight Utilities")
         row = layout.row()
         row.operator('object.vertex_group_limit_total', text= 'Limit Weights')
-        
+        row = layout.row()
+        row.operator('object.clean_vertex_groups', text= 'Clean Weights')
+
+#------------------------ WF OGRE MATERIAL UTILITES -----------------------------------
         row = layout.row()
         layout.label(text="Material Utilities")
         row = layout.row(align=True)
         row.operator('mesh.wf_fix_materials', text= 'Fix Materials')
-        row.operator('mesh.wf_open_ogre_materials', text= 'Open Ogre Mats')
+        row.operator('scene.wf_open_ogre_materials', text= 'Open Ogre Mats')
         
 def register():
     bpy.utils.register_class(PANEL_OT_wf_tools_panel)
