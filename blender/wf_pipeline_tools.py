@@ -596,31 +596,6 @@ if __name__ == '__main__':
 
 
 
-'''
-ob = bpy.context.active_object
-
-def clean_vertex_groups( ob ):
-	vertex_groups = ob.vertex_groups
-	rig = ob.modifiers[-1].object # get the rig
-	bones = rig.data.bones
-	#get data
-	vgrp_list = [grp.name for grp in ob.vertex_groups]
-	bone_list = [bone.name for bone in rig.data.bones if bone.use_deform ]
-
-	#compare lists 
-	del_group = [itm for itm in vgrp_list if itm not in bone_list]
-	mkv_groups = [itm for itm in bone_list if itm not in vgrp_list]
-
-	#add vertex groups based on armatures deformable bones
-	[ob.vertex_groups.new(name) for name in mkv_groups] 
-
-	# remove groups that are not part of the current armatures deformable bones
-	# list comprehension code may be a bit too long
-	[ob.vertex_groups.remove( ob.vertex_groups[ ob.vertex_groups.find( group ) ] ) for group in del_group]
-		
-clean_vertex_groups( ob )    
-'''
-
 
 
 
