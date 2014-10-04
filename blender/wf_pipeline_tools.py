@@ -169,21 +169,32 @@ class OgreMaterialManager:
 					print( image_name )
 					print( image_names_list )
 
+def get_directory_intersection( intersection_string, directory = None ):
+	if directory ==  None:
+		directory = bpy.data.filepath
+
+	tkn = os.path.abspath( directory ).split(os.sep)
+	intersect = None
+	if intersection_string in tkn:
+		intersect = tkn.index( intersection_string )
+	return intersect
+
 def get_humanoid_skeleton_relative_path ( ):
-	
+	r'''gets the relative path to the humanoid skeleton '''
 	blender_path = bpy.data.filepath
-	print (blender_path)
+
 	tkn = os.path.abspath( blender_path ).split(os.sep)
-	intersect = -1 
-	if 'biped' in tkn:
-		intersect = tkn.index('biped')
 
-	tkn = tkn[0:intersect + 1]
-	tkn.append('animations/humanoid')
+	intersect_source = get_directory_intersection('source' )
+	model_dir =  (os.sep).join( tkn[0:intersect_source] + ['model'])
 
-	skeleton_path = os.path.abspath( (os.sep).join(tkn))
+	intersect_biped = get_directory_intersection('biped' )
+	skeleton_dir = ( (os.sep).join( tkn[0:intersect_biped + 1] + ['animations/humanoid'])  )
+	
+	model_dir =  os.path.abspath( model_dir )
+	skeleton_dir = os.path.abspath( skeleton_dir ) 
 
-	relative_path = os.path.relpath(skeleton_path, os.path.dirname( blender_path) )
+	relative_path = os.path.relpath(skeleton_dir, model_dir )
 	relative_path = (relative_path).replace('\\', '/')
 	return relative_path
 
@@ -426,8 +437,71 @@ class OBJECT_OT_clean_vertex_groups(Operator, AddObjectHelper):
 		RAU.clean_vertex_groups(context)
 		return {'FINISHED'}
 
+class OBJECT_OT_wf_rename_objects( Operator):
+    """Renames multiple objects names and the data names to a supplied string"""
+    bl_idname = "object.wf_rename_objects"
+    bl_label = "Rename Object"
+    bl_options = {'REGISTER', 'UNDO'} 
 
+    
 
+    @classmethod
+    def poll(cls, context):
+        return context.selected_objects != None
+
+    def execute(self, context):
+        print ('renaming objects')
+        ll = ['|',' ','.',':','\'','\"','\\', '@','#','$','%','^',';']
+
+        arr = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o',]
+        obs = context.selected_editable_objects
+        print(obs)
+        if context.scene.wf_rename_panel != '':
+            new_name = context.scene.wf_rename_panel
+            for i in new_name:
+                if i in ll:
+                    new_name.replace (i,'_')
+
+            new_name = new_name.lower()
+            new_name = new_name.replace (' ', '_')
+            print (new_name)
+            if len(obs) > 1:
+                for zz in range(0, len(obs)):
+                    ob = obs[zz]
+                    ob.name = new_name + ('_%s' % arr[zz])
+                    ob.data.name = new_name + ('_%s' % arr[zz])
+            else:
+                ob = obs[0]
+                ob.name = new_name
+                ob.data.name = new_name
+        
+        return {'FINISHED'}
+
+class OBJECT_OT_wf_pivot_to_selected( Operator ):
+    """Pivot to Selection"""
+    bl_idname = "object.wf_pivot_to_selected"
+    bl_label = "Pivot To Selected"
+    bl_options = {'REGISTER', 'UNDO'}
+ 
+    # @classmethod
+    # def poll(cls, context):
+    #     obj = context.active_object
+    #     return obj is not None and obj.mode == 'EDIT'
+ 
+    def execute(self, context):
+        obj = context.active_object
+        if obj.mode =='EDIT':
+            saved_location = bpy.context.scene.cursor_location.copy()
+            bpy.ops.view3d.snap_cursor_to_selected()
+            bpy.ops.object.mode_set(mode = 'OBJECT')
+            bpy.ops.object.origin_set(type='ORIGIN_CURSOR')  
+            bpy.context.scene.cursor_location = saved_location
+            bpy.ops.object.mode_set(mode = 'EDIT')
+
+        if obj.mode == 'OBJECT':
+            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
+
+        return {'FINISHED'}
 # ----------------------------------------------------------------------------
 # ------------------------ BUTTON MAPPING ------------------------------------
 # ----------------------------------------------------------------------------
@@ -456,10 +530,22 @@ def clean_vertex_groups_manual_map():
 	url_manual_mapping = (('bpy.ops.object.clean_vertex_groups', 'Modeling/Objects'), )
 	return url_manual_prefix, url_manual_mapping
 
+def wf_rename_objects_manual_map():
+	url_manual_prefix = 'http://wiki.blender.org/index.php/Doc:2.6/Manual/'
+	url_manual_mapping = (('bpy.ops.object.wf_rename_objects', 'Modeling/Objects'), )
+	return url_manual_prefix, url_manual_mapping
+
+def wf_pivot_to_selected_manual_map():
+	url_manual_prefix = 'http://wiki.blender.org/index.php/Doc:2.6/Manual/'
+	url_manual_mapping = (('bpy.ops.object.wf_pivot_to_selected', 'Modeling/Objects'), )
+	return url_manual_prefix, url_manual_mapping
+
 # ----------------------------------------------------------------------------
 # --------------------------- REGISRATION ------------------------------------
 # ----------------------------------------------------------------------------
 def register():
+	bpy.types.Scene.wf_rename_panel = bpy.props.StringProperty(name="", description = "Rename objects with this string") 
+
 	bpy.utils.register_class(OBJECT_OT_wfoe_static)
 	bpy.utils.register_manual_map(wfoe_static_manual_map)
 
@@ -474,8 +560,16 @@ def register():
 
 	bpy.utils.register_class(OBJECT_OT_clean_vertex_groups)
 	bpy.utils.register_manual_map(clean_vertex_groups_manual_map)
+	
+	bpy.utils.register_class(OBJECT_OT_wf_rename_objects)
+	bpy.utils.register_manual_map(wf_rename_objects_manual_map)
+	
+	bpy.utils.register_class(OBJECT_OT_wf_pivot_to_selected)
+	bpy.utils.register_manual_map(wf_pivot_to_selected_manual_map)
 
 def unregister():
+	del bpy.types.Scene.rename_panel
+
 	bpy.utils.unregister_class(OBJECT_OT_wfoe_static)
 	bpy.utils.unregister_manual_map(wfoe_static_manual_map)
 
@@ -491,35 +585,16 @@ def unregister():
 	bpy.utils.unregister_class(OBJECT_OT_clean_vertex_groups)
 	bpy.utils.unregister_manual_map(clean_vertex_groups_manual_map)
 
+	bpy.utils.unregister_class(OBJECT_OT_wf_rename_objects)
+	bpy.utils.unregister_manual_map(wf_rename_objects_manual_map)
+	
+	bpy.utils.unregister_class(OBJECT_OT_wf_pivot_to_selected)
+	bpy.utils.unregister_manual_map(wf_pivot_to_selected-manual_map)
+
 if __name__ == '__main__':
 	register()
 
 
-
-'''
-ob = bpy.context.active_object
-
-def clean_vertex_groups( ob ):
-	vertex_groups = ob.vertex_groups
-	rig = ob.modifiers[-1].object # get the rig
-	bones = rig.data.bones
-	#get data
-	vgrp_list = [grp.name for grp in ob.vertex_groups]
-	bone_list = [bone.name for bone in rig.data.bones if bone.use_deform ]
-
-	#compare lists 
-	del_group = [itm for itm in vgrp_list if itm not in bone_list]
-	mkv_groups = [itm for itm in bone_list if itm not in vgrp_list]
-
-	#add vertex groups based on armatures deformable bones
-	[ob.vertex_groups.new(name) for name in mkv_groups] 
-
-	# remove groups that are not part of the current armatures deformable bones
-	# list comprehension code may be a bit too long
-	[ob.vertex_groups.remove( ob.vertex_groups[ ob.vertex_groups.find( group ) ] ) for group in del_group]
-		
-clean_vertex_groups( ob )    
-'''
 
 
 
