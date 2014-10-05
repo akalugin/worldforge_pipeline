@@ -197,9 +197,23 @@ def get_humanoid_skeleton_relative_path ( ):
 	relative_path = os.path.relpath(skeleton_dir, model_dir )
 	relative_path = (relative_path).replace('\\', '/')
 	return relative_path
+def get_ogre_converter_path():
+	
+	_id = None
+	tkn = os.path.abspath( os.path.dirname(bpy.data.filepath) )
+	if 'assets' in tkn:
+		_id = tkn.index('assets')
+	if _id != None:
+		if os.name == 'nt':
+			return os.path.join(tkn[0:_id], 'resources','asset_manager','bin','nt','OgreCommandLineTools_1.7.2','OgreXMLConverter.exe' )
 
+		if os.name == 'posix':
+			return os.path.join(tkn[0:_id], 'resources','asset_manager','bin','posix','OgreCommandLineTools','OgreXMLConverter' )
+		
+	return False
 def convert_ogre_xml(path):
-	command = r'D:\\worldforge\\resources\\asset_manager\\bin\\OgreCommandLineTools_1.7.2\\OgreXMLConverter.exe '
+
+	command = get_ogre_converter_path() + ' '
 	print (command + path)
 	os.system(command + path)
 	# os.system('OgreXmlConverter.exe -t -q ' + path)
@@ -248,10 +262,14 @@ def get_wf_export_path( animated = False ):
 def convert_ogre_xmls_to_mesh(root_dir):
 	'''converts all xml files in the directory'''
 	ll = os.listdir(root_dir)
+	# print (ll)
 	for dd in ll:
 		if dd.endswith('.xml'):
 			xml_file = os.path.abspath(os.path.join(root_dir, dd))
 			mesh_file = ( xml_file[:-4] )
+			# print (xml_file)
+			# print (mesh_file)
+
 			if os.path.isfile(mesh_file):
 				os.remove(mesh_file)
 
@@ -335,7 +353,9 @@ def clean_tmp_dir( tmp_dir,root_path ):
 def export_ogre_static (self, context, convert = True):
 	'''Main exporter for static content'''
 	root_path, ogre_xml_path  = get_wf_export_path()
-	
+	print (root_path)
+	print (ogre_xml_path)
+
 	wf_export_ogre(ogre_xml_path)
 	if convert == True:
 		convert_ogre_xmls_to_mesh(root_path)
